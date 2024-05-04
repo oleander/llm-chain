@@ -80,11 +80,16 @@ pub fn create_chat_completion_request(
     is_streaming: bool,
 ) -> Result<CreateChatCompletionRequest, OpenAIInnerError> {
     let messages = format_chat_messages(prompt.to_chat())?;
-    Ok(CreateChatCompletionRequestArgs::default()
+    println!("messages: {:?}", messages);
+    let x = Ok(CreateChatCompletionRequestArgs::default()
         .model(model)
         .stream(is_streaming)
         .messages(messages)
-        .build()?)
+        .build()?);
+
+    println!("create_chat_completion_request: {:?}", x);
+
+    x
 }
 
 pub fn completion_to_output(resp: CreateChatCompletionResponse) -> Output {

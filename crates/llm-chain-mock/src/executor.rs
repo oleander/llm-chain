@@ -31,6 +31,7 @@ impl llm_chain::traits::Executor for Executor {
         options: &Options,
         prompt: &Prompt,
     ) -> Result<TokenCount, PromptTokensError> {
+
         let tokenizer = self.get_tokenizer(options)?;
         let input = prompt.to_text();
         let mut tokens_used = tokenizer

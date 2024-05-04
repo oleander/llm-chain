@@ -1,11 +1,19 @@
+use llm_chain::{executor, options, parameters, prompt, Parameters};
+use llm_chain::traits::Executor as ExecutorTrait;
+use llm_chain_openai::chatgpt::Executor;
+use llm_chain::options::{ModelRef, Options};
 use llm_chain::chains::map_reduce::Chain;
+use serde::{Deserialize, Serialize};
 use llm_chain::step::Step;
-use llm_chain::{executor, parameters, prompt, Parameters};
-
+use anyhow::Result;
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a new ChatGPT executor with the default settings
-    let exec = executor!()?;
+    let options = options!(
+        Model: ModelRef::from_model_name("llama3:latest")
+    );
+
+    let exec = executor!(chatgpt, options)?;
 
     // Create the "map" step to summarize an article into bullet points
     let map_prompt = Step::for_prompt_template(prompt!(
@@ -29,7 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let docs = vec![parameters!(article)];
 
     // Run the chain with the provided documents and an empty Parameters object for the "reduce" step
-    let res = chain.run(docs, Parameters::new(), &exec).await.unwrap();
+    let res = chain.run(docs, Parameters::new(), &exec).await?;
 
     // Print the result to the console
     println!("{}", res);

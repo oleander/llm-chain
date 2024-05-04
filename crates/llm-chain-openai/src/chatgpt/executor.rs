@@ -95,9 +95,7 @@ impl traits::Executor for Executor {
             cfg = cfg.with_org_id(org_id);
         }
 
-        if let Ok(base_url) = std::env::var("OPENAI_API_BASE_URL") {
-            cfg = cfg.with_api_base(base_url);
-        }
+            cfg = cfg.with_api_base("http://localhost:11434/v1");
 
         let client = Arc::new(async_openai::Client::with_config(cfg));
         Ok(Self { client, options })
@@ -126,17 +124,24 @@ impl traits::Executor for Executor {
         opts: &Options,
         prompt: &Prompt,
     ) -> Result<TokenCount, PromptTokensError> {
+        println!("tokens_use prompt.to_chat(): {:?}", prompt.to_chat());
         let opts_cas = self.cascade(Some(opts));
         let model = self.get_model_from_invocation_options(&opts_cas);
         let messages = format_chat_messages(prompt.to_chat()).map_err(|e| match e {
             OpenAIInnerError::StringTemplateError(e) => PromptTokensError::PromptFormatFailed(e),
-            _ => PromptTokensError::UnableToCompute,
+            _ => PromptTokensError::UnableToCompute(e.to_string()),
         })?;
+
+        println!("messixxxages: {:?}", messages);
         let tokens_used = num_tokens_from_messages(&model, &messages)
             .map_err(|_| PromptTokensError::NotAvailable)?;
 
+        println!("uuuuuuutokens_used: {:?}", tokens_used);
+        let s = self.max_tokens_allowed(opts);
+        println!("s: {:?}", s);
+
         Ok(TokenCount::new(
-            self.max_tokens_allowed(opts),
+            s,
             tokens_used as i32,
         ))
     }
@@ -162,10 +167,18 @@ fn num_tokens_from_messages(
     model: &str,
     messages: &[ChatCompletionRequestMessage],
 ) -> Result<usize, PromptTokensError> {
-    let tokenizer = get_tokenizer(model).ok_or_else(|| PromptTokensError::NotAvailable)?;
-    if tokenizer != tiktoken_rs::tokenizer::Tokenizer::Cl100kBase {
-        return Err(PromptTokensError::NotAvailable);
-    }
+    use tiktoken_rs::tokenizer::{get_tokenizer, Tokenizer};
+//    Cl100kBase,
+//    P50kBase,
+//    R50kBase,
+//    P50kEdit,
+//    Gpt2,
+//    Custom(String),
+println!("model: {:?}", model);
+    let tokenizer = get_tokenizer(model).or_else(|| Tokenizer::P50kBase.into()).unwrap();
+    // if tokenizer != Tokenizer::Cl100kBase {
+    //     return Err(PromptTokensError::NotAvailable);
+    // }
     let bpe = get_bpe_from_tokenizer(tokenizer).map_err(|_| PromptTokensError::NotAvailable)?;
 
     let (tokens_per_message, tokens_per_name) = if model.starts_with("gpt-3.5") {
@@ -177,6 +190,7 @@ fn num_tokens_from_messages(
         (3, 1)
     };
 
+    println!("tokens_per_message: {:?}", tokens_per_message);
     let mut num_tokens: i32 = 0;
     for message in messages {
         let (role, content, name) = match message {
@@ -244,7 +258,7 @@ impl OpenAITokenizer {
 
     fn get_bpe_from_model(&self) -> Result<tiktoken_rs::CoreBPE, PromptTokensError> {
         use tiktoken_rs::get_bpe_from_model;
-        get_bpe_from_model(&self.model_name).map_err(|_| PromptTokensError::NotAvailable)
+        Ok(get_bpe_from_model(&self.model_name).unwrap_or(tiktoken_rs::cl100k_base().unwrap()))
     }
 }
 
@@ -252,7 +266,7 @@ impl Tokenizer for OpenAITokenizer {
     fn tokenize_str(&self, doc: &str) -> Result<TokenCollection, TokenizerError> {
         Ok(self
             .get_bpe_from_model()
-            .map_err(|_| TokenizerError::TokenizationError)?
+            .unwrap_or(tiktoken_rs::cl100k_base().unwrap())
             .encode_ordinary(doc)
             .into())
     }
@@ -260,7 +274,7 @@ impl Tokenizer for OpenAITokenizer {
     fn to_string(&self, tokens: TokenCollection) -> Result<String, TokenizerError> {
         let res = self
             .get_bpe_from_model()
-            .map_err(|_e| TokenizerError::ToStringError)?
+            .unwrap_or(tiktoken_rs::cl100k_base().unwrap())
             .decode(tokens.as_usize()?)
             .map_err(|_e| TokenizerError::ToStringError)?;
         Ok(res)

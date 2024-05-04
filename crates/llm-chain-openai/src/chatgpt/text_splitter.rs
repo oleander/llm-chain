@@ -20,17 +20,17 @@ impl OpenAITextSplitter {
 
     fn get_bpe_from_model(&self) -> Result<CoreBPE, TokenizerError> {
         use tiktoken_rs::get_bpe_from_model;
-        get_bpe_from_model(&self.model.to_string()).map_err(|_| TokenizerError::TokenizationError)
+        get_bpe_from_model(&self.model.to_string()).unwrap()
     }
 }
 
 impl Tokenizer<usize> for OpenAITextSplitter {
     fn tokenize_str(&self, doc: &str) -> Result<Vec<usize>, TokenizerError> {
-        Ok(self.get_bpe_from_model()?.encode_ordinary(doc))
+        Ok(self.get_bpe_from_model().unwrap().encode_ordinary(doc))
     }
 
     fn to_string(&self, tokens: Vec<usize>) -> Result<String, TokenizerError> {
-        self.get_bpe_from_model()?
+        self.get_bpe_from_model()
             .decode(tokens)
             .map_err(|_| TokenizerError::ToStringError)
     }

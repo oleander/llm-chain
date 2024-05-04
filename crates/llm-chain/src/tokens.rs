@@ -9,67 +9,78 @@ use crate::{traits, Parameters};
 use serde::{Deserialize, Serialize};
 use std::cmp::max;
 use thiserror::Error;
+use std::convert::From;
 
 /// Custom error type for handling prompt token-related errors.
-#[derive(Clone, Debug, Error)]
+
+
+#[derive(Debug, Error)]
 pub enum PromptTokensError {
-    /// Indicates that prompt tokens are not accessible for the given step.
     #[error("The prompt tokens are not accessible for this type of step.")]
     NotAvailable,
-    /// Indicates that the prompt tokens could not be computed.
-    #[error("The prompt tokens could not be computed.")]
-    UnableToCompute,
+    #[error("The prompt tokens could not be computed due to: {0}")]
+    UnableToCompute(String), // Now supports carrying a message with specific error details
+    #[error("Token computation resulted in an invalid number of available tokens.")]
+    InvalidTokenCalculation, // For handling cases where token calculation is logically incorrect
+
     /// Indicates that the prompt tokens could not be computed because formatting the prompt failed.
     #[error("Formatting prompt failed: {0}")]
     PromptFormatFailed(#[from] crate::prompt::StringTemplateError),
     #[error("Tokenizer error: {0}")]
     TokenizerError(#[from] crate::tokens::TokenizerError),
 }
-
-/// An extension trait for the `Executor` trait that provides additional methods for working
-/// with token counts.
+/// Extension trait for `Executor` trait to handle token counts and parameter splitting.
 pub trait ExecutorTokenCountExt: traits::Executor {
     /// Splits a `Parameters` object into multiple smaller `Parameters` objects that fit within
-    /// the context window size supported by the given model.
+    /// the specified context window of the model, considering token overlap between chunks.
     ///
     /// # Arguments
-    /// * `step` - The step that will process the Parameters. Has impact on tokenizer & text splitter used
-    /// * `doc` - The parameter object to split into multiple, smaller, parameters
-    /// * `chunk_overlap` - The amount of tokens each split part should overlap with previous & next chunk
+    /// * `step` - Represents the processing step, influencing the choice of tokenizer and splitter.
+    /// * `doc` - The parameters to be split.
+    /// * `base_parameters` - Base parameters to combine with `doc` for formatting the prompt.
+    /// * `chunk_overlap` - Number of tokens each split should overlap with the next or previous.
     ///
     /// # Errors
-    ///
-    /// Returns a `PromptTokensError` if there is an issue computing the tokens.
-    fn split_to_fit(
-        &self,
-        step: &Step,
-        doc: &Parameters,
-        base_parameters: &Parameters,
-        chunk_overlap: Option<usize>,
-    ) -> Result<Vec<Parameters>, PromptTokensError> {
-        let splitter = self
-            .get_tokenizer(step.options())
-            .map_err(|_e| PromptTokensError::UnableToCompute)?;
+    /// Returns `PromptTokensError` if there is an issue computing the tokens.
+fn split_to_fit(
+    &self,
+    step: &Step,
+    doc: &Parameters,
+    base_parameters: &Parameters,
+    chunk_overlap: Option<usize>,
+) -> Result<Vec<Parameters>, PromptTokensError> {
+    let splitter = self
+        .get_tokenizer(step.options())
+        .map_err(|e| PromptTokensError::UnableToCompute(format!("Tokenizer retrieval failed: {:?}", e)))?;
 
-        let text = doc.get_text().ok_or(PromptTokensError::UnableToCompute)?;
+    let text = doc.get_text().ok_or_else(||
+        PromptTokensError::UnableToCompute("Document text is unavailable.".to_string()))?;
 
-        let prompt = step.format(&base_parameters.combine(&Parameters::new_with_text("")))?;
-        let tokens_used = self.tokens_used(step.options(), &prompt)?;
-        let chunk_overlap = chunk_overlap.unwrap_or(0);
+    let prompt = step.format(&base_parameters.combine(&Parameters::new_with_text("")))
+        .map_err(|e| PromptTokensError::UnableToCompute(format!("Prompt formatting failed: {:?}", e)))?;
 
-        let split_params = splitter
-            .split_text(
-                &text,
-                tokens_used.max_tokens as usize - tokens_used.tokens_used as usize,
-                chunk_overlap,
-            )
-            .map_err(|_e| PromptTokensError::UnableToCompute)?
-            .into_iter()
-            .map(Parameters::new_with_text)
-            .collect();
-        Ok(split_params)
-    }
+    let tokens_used = self.tokens_used(step.options(), &prompt)
+        .map_err(|e| PromptTokensError::UnableToCompute(format!("Token usage calculation failed: {:?}", e)))?;
+
+    let available_tokens = if tokens_used.max_tokens > tokens_used.tokens_used {
+        tokens_used.max_tokens as usize - tokens_used.tokens_used as usize
+    } else {
+        return Err(PromptTokensError::UnableToCompute("No available tokens for splitting.".to_string()));
+    };
+
+    let overlap = chunk_overlap.unwrap_or(0);
+
+    let split_params = splitter.split_text(&text, available_tokens, overlap)
+        .map_err(|e| PromptTokensError::UnableToCompute(format!("Failed to split text: {:?}", e)))?
+        .into_iter()
+        .map(Parameters::new_with_text)
+        .collect();
+
+        println!("Prompt: {}", prompt);
+    Ok(split_params)
 }
+}
+
 
 /// Blanket implementation of ExecutorTokenCountExt for all Executors
 impl<E: traits::Executor> ExecutorTokenCountExt for E {}
@@ -165,7 +176,11 @@ pub trait Tokenizer {
         max_tokens_per_chunk: usize,
         chunk_overlap: usize,
     ) -> Result<Vec<String>, TokenizerError> {
+
+        println!("Tokenizing text: {}", doc.len());
         let tokens = self.tokenize_str(doc)?;
+
+        println!("Splitting text: {}", doc.len());
         let step_size = max(
             max_tokens_per_chunk.checked_sub(chunk_overlap).unwrap_or(1),
             1,
@@ -173,6 +188,7 @@ pub trait Tokenizer {
 
         debug_assert_ne!(step_size, 0);
 
+        println!("XXXSplitting text: {}", doc.len());
         (0..tokens.len())
             .step_by(step_size)
             .map(|start_idx| {
