@@ -84,13 +84,17 @@ impl traits::Executor for Executor {
 
     if let Some(Opt::ApiKey(api_key)) = opts.get(llm_chain::options::OptDiscriminants::ApiKey) {
       cfg = cfg.with_api_key(api_key)
+    } else if let Ok(api_key) = std::env::var("OPENAI_API_KEY") {
+      cfg = cfg.with_api_key(api_key);
     }
 
     if let Ok(org_id) = std::env::var("OPENAI_ORG_ID") {
       cfg = cfg.with_org_id(org_id);
     }
 
-    cfg = cfg.with_api_base("http://localhost:11434/v1");
+    if let Ok(url) = std::env::var("OPENAI_API_BASE_URL") {
+      cfg = cfg.with_api_base(url);
+    }
 
     let client = Arc::new(async_openai::Client::with_config(cfg));
     Ok(Self {
