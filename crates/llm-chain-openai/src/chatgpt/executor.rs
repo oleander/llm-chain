@@ -134,10 +134,7 @@ impl traits::Executor for Executor {
   /// Get the context size from the model or return default context size
   fn max_tokens_allowed(&self, opts: &Options) -> i32 {
     let opts_cas = self.cascade(Some(opts));
-    let model = opts_cas.model().id();
-    tiktoken_rs::model::get_context_size(&model)
-      .try_into()
-      .unwrap_or(4096)
+    opts_cas.model().max_tokens_allowed()
   }
 
   fn answer_prefix(&self, _prompt: &Prompt) -> Option<String> {
@@ -153,11 +150,11 @@ fn num_tokens_from_messages(
   model: ModelOpt, messages: &[ChatCompletionRequestMessage],
 ) -> Result<usize, PromptTokensError> {
 
-  // if tokenizer != Tokenizer::Cl100kBase {
+  // TODO: if tokenizer != Tokenizer::Cl100kBase {
   //   return Err(PromptTokensError::NotAvailable);
   // }
 
-  let bpe = model.bpe().map_err(|_| PromptTokensError::NotAvailable)?;
+  let bpe = model.bpe().map_err(PromptTokensError::from)?;
 
   let (tokens_per_message, tokens_per_name) = if model.name().starts_with("gpt-3.5") {
     (

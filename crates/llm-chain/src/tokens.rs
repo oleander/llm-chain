@@ -75,8 +75,6 @@ fn split_to_fit(
         .into_iter()
         .map(Parameters::new_with_text)
         .collect();
-
-        println!("Prompt: {}", prompt);
     Ok(split_params)
 }
 }
@@ -176,11 +174,7 @@ pub trait Tokenizer {
         max_tokens_per_chunk: usize,
         chunk_overlap: usize,
     ) -> Result<Vec<String>, TokenizerError> {
-
-        println!("Tokenizing text: {}", doc.len());
         let tokens = self.tokenize_str(doc)?;
-
-        println!("Splitting text: {}", doc.len());
         let step_size = max(
             max_tokens_per_chunk.checked_sub(chunk_overlap).unwrap_or(1),
             1,
@@ -188,7 +182,6 @@ pub trait Tokenizer {
 
         debug_assert_ne!(step_size, 0);
 
-        println!("XXXSplitting text: {}", doc.len());
         (0..tokens.len())
             .step_by(step_size)
             .map(|start_idx| {

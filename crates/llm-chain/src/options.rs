@@ -546,13 +546,8 @@ mod tests {
         env::set_var("LLM_CHAIN_N_BATCH", orig_nbatch.to_string());
         env::set_var("LLM_CHAIN_API_KEY", orig_api_key);
         let opts = options_from_env().unwrap();
-        let model_path = opts
-            .get(OptDiscriminants::Model)
-            .and_then(|x| match x {
-                Opt::Model(m) => Some(m),
-                _ => None,
-            })
-            .unwrap();
+        let model_path = opts.model();
+
         let nbatch = opts
             .get(OptDiscriminants::NBatch)
             .and_then(|x| match x {

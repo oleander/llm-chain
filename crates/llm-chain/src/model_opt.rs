@@ -4,6 +4,8 @@ use crate::tokens::PromptTokensError;
 use serde::{Deserialize, Serialize};
 use tiktoken_rs::{tokenizer::Tokenizer, CoreBPE};
 
+const FALLBACK_CONTEXT_SIZE: i32 = 4096;
+
 lazy_static::lazy_static! {
   static ref TOKENIZER: HashMap<Tokenizer, String> = {
     let mut map = HashMap::new();
@@ -39,6 +41,10 @@ impl ModelOpt {
 
   pub fn name(&self) -> String {
     self.name.clone()
+  }
+
+  pub fn max_tokens_allowed(&self) -> i32 {
+    tiktoken_rs::model::get_context_size(&self.id()).try_into().unwrap_or(FALLBACK_CONTEXT_SIZE)
   }
 }
 
