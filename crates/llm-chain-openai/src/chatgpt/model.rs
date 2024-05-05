@@ -1,4 +1,4 @@
-use llm_chain::options::{ModelRef, Opt};
+use llm_chain::{model_opt::ModelOpt, options::{ModelRef, Opt}};
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
 
@@ -89,15 +89,15 @@ impl ToString for Model {
 
 /// Conversion from Model to ModelRef
 impl From<Model> for ModelRef {
-    fn from(value: Model) -> Self {
-        ModelRef::from_model_name(value.to_string())
+    fn from(model: Model) -> Self {
+        ModelRef::from_model_name(model.to_string())
     }
 }
 
 /// Conversion from Model to Option
 impl From<Model> for Opt {
     fn from(value: Model) -> Self {
-        Opt::Model(value.into())
+        Opt::Model(ModelOpt::new(value.to_string()))
     }
 }
 

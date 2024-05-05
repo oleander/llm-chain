@@ -38,6 +38,7 @@ pub mod step;
 pub mod tokens;
 pub mod tools;
 pub mod traits;
+pub mod model_opt;
 
 // Utilities and tools
 pub mod summarization;

@@ -5,6 +5,7 @@ use async_openai::config::OpenAIConfig;
 use async_openai::types::ChatCompletionRequestMessage;
 
 use async_openai::types::ChatCompletionRequestUserMessageContent;
+use llm_chain::model_opt::ModelOpt;
 use llm_chain::options::Opt;
 use llm_chain::options::Options;
 use llm_chain::options::OptionsCascade;
@@ -12,6 +13,7 @@ use llm_chain::output::Output;
 use llm_chain::tokens::TokenCollection;
 use tiktoken_rs::get_bpe_from_tokenizer;
 use tiktoken_rs::tokenizer::get_tokenizer;
+use tiktoken_rs::CoreBPE;
 
 use super::prompt::create_chat_completion_request;
 use super::prompt::format_chat_messages;
@@ -239,7 +241,7 @@ println!("model: {:?}", model);
 }
 
 pub struct OpenAITokenizer {
-    model_name: String,
+    model: ModelOpt
 }
 
 impl OpenAITokenizer {
@@ -252,31 +254,21 @@ impl OpenAITokenizer {
     }
     /// Creates an OpenAITokenizer for the passed in model name
     pub fn for_model_name<S: Into<String>>(model_name: S) -> Self {
-        let model_name: String = model_name.into();
-        Self { model_name }
+        Self { model: ModelOpt::new(model_name.into()) }
     }
 
     fn get_bpe_from_model(&self) -> Result<tiktoken_rs::CoreBPE, PromptTokensError> {
-        use tiktoken_rs::get_bpe_from_model;
-        Ok(get_bpe_from_model(&self.model_name).unwrap_or(tiktoken_rs::cl100k_base().unwrap()))
+        self.model.bpe()
     }
 }
 
 impl Tokenizer for OpenAITokenizer {
     fn tokenize_str(&self, doc: &str) -> Result<TokenCollection, TokenizerError> {
-        Ok(self
-            .get_bpe_from_model()
-            .unwrap_or(tiktoken_rs::cl100k_base().unwrap())
-            .encode_ordinary(doc)
-            .into())
+        Ok(self.model.bpe().unwrap().encode_ordinary(doc).into())
     }
 
     fn to_string(&self, tokens: TokenCollection) -> Result<String, TokenizerError> {
-        let res = self
-            .get_bpe_from_model()
-            .unwrap_or(tiktoken_rs::cl100k_base().unwrap())
-            .decode(tokens.as_usize()?)
-            .map_err(|_e| TokenizerError::ToStringError)?;
+        let res = self.model.bpe().unwrap().decode(tokens.as_usize()?).map_err(|_e| TokenizerError::ToStringError)?;
         Ok(res)
     }
 }

@@ -1792,6 +1792,7 @@ dependencies = [
  "strum_macros 0.25.3",
  "tera",
  "thiserror",
+ "tiktoken-rs",
  "tokio",
  "tokio-stream",
  "uuid",

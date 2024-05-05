@@ -11,7 +11,7 @@ use crate::{chains::sequential, prompt, Parameters};
 
 use serde::Deserialize;
 use serde::Serialize;
-#[derive(derive_builder::Builder, Debug, Clone, Serialize, Deserialize)]
+#[derive(derive_builder::Builder, Debug, Clone, Serialize)]
 /// A step in a chain of LLM invocations. It is a combination of a prompt and a configuration.
 pub struct Step {
     pub(crate) prompt: prompt::PromptTemplate,

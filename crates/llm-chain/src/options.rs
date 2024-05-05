@@ -5,10 +5,10 @@ use std::{collections::HashMap, env::VarError, ffi::OsStr};
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumDiscriminants;
 
-use crate::tokens::Token;
+use crate::{model_opt::ModelOpt, tokens::Token};
 
 /// A collection of options that can be used to configure a model.
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize)]
 /// `Options` is the struct that represents a set of options for a large language model.
 /// It provides methods for creating, adding, and retrieving options.
 ///
@@ -299,8 +299,10 @@ impl ModelRef {
     pub fn from_path<S: Into<String>>(p: S) -> Self {
         Self(p.into())
     }
-    pub fn from_model_name<S: Into<String>>(model_name: S) -> Self {
-        Self(model_name.into())
+    pub fn from_model_name<S: Into<String>>(model_name: S) -> ModelRef {
+        ModelRef {
+            0: model_name.into(),
+        }
     }
     /// Returns the path for this model reference
     pub fn to_path(&self) -> String {
@@ -309,6 +311,13 @@ impl ModelRef {
     /// Returns the name of the model
     pub fn to_name(&self) -> String {
         self.0.clone()
+    }
+}
+
+// ModelRef -> ModelOpt
+impl From<ModelRef> for ModelOpt {
+    fn from(model: ModelRef) -> Self {
+      ModelOpt::new(model.to_name())
     }
 }
 
@@ -327,10 +336,10 @@ impl TokenBias {
     }
 }
 
-#[derive(EnumDiscriminants, Clone, Debug, Serialize, Deserialize)]
+#[derive(EnumDiscriminants, Clone, Debug, Serialize)]
 pub enum Opt {
     /// The name or path of the model used.
-    Model(ModelRef),
+    Model(ModelOpt),
     /// The API key for the model service.
     ApiKey(String),
     /// The number of threads to use for parallel processing.
@@ -432,7 +441,7 @@ where
 
 // Conversion functions for each Opt variant
 fn model_from_string(s: String) -> Option<Opt> {
-    Some(Opt::Model(ModelRef::from_path(s)))
+    Some(Opt::Model(ModelRef::from_path(s).into()))
 }
 
 fn api_key_from_string(s: String) -> Option<Opt> {

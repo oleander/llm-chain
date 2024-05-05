@@ -1,3 +1,4 @@
+use llm_chain::model_opt::ModelOpt;
 use llm_chain::{executor, options, parameters, prompt, Parameters};
 use llm_chain::traits::Executor as ExecutorTrait;
 use llm_chain_openai::chatgpt::Executor;
@@ -10,7 +11,7 @@ use anyhow::Result;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a new ChatGPT executor with the default settings
     let options = options!(
-        Model: ModelRef::from_model_name("llama3:latest")
+        Model: ModelOpt::new_with_bpe("llama3:latest", CoreBPE::GPT2)
     );
 
     let exec = executor!(chatgpt, options)?;
