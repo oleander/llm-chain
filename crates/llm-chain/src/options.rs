@@ -8,7 +8,7 @@ use strum_macros::EnumDiscriminants;
 use crate::{model_opt::ModelOpt, tokens::Token};
 
 /// A collection of options that can be used to configure a model.
-#[derive(Default, Debug, Clone, Serialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 /// `Options` is the struct that represents a set of options for a large language model.
 /// It provides methods for creating, adding, and retrieving options.
 ///
@@ -336,7 +336,7 @@ impl TokenBias {
     }
 }
 
-#[derive(EnumDiscriminants, Clone, Debug, Serialize)]
+#[derive(EnumDiscriminants, Clone, Debug, Serialize, Deserialize)]
 pub enum Opt {
     /// The name or path of the model used.
     Model(ModelOpt),

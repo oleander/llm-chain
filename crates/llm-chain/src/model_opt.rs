@@ -1,6 +1,6 @@
 use crate::tokens::PromptTokensError;
-use serde::Serialize;
-use tiktoken_rs::CoreBPE;
+use serde::{Deserialize, Serialize};
+use tiktoken_rs::{get_bpe_from_tokenizer, tokenizer::Tokenizer, CoreBPE};
 
 #[derive(Debug, Clone)]
 pub enum ModelOpt {
@@ -13,8 +13,8 @@ impl ModelOpt {
     Self::Known(name)
   }
 
-  pub fn new_with_bpe(name: String, bpe: CoreBPE) -> Self {
-    Self::Unknown(name, bpe)
+  pub fn new_with_bpe(name: String, tkn: Tokenizer) -> Self {
+    Self::Unknown(name, get_bpe_from_tokenizer(tkn).unwrap())
   }
 
   pub fn bpe(&self) -> Result<CoreBPE, PromptTokensError> {
@@ -41,5 +41,15 @@ impl Serialize for ModelOpt {
       Self::Known(name) => name.serialize(serializer),
       Self::Unknown(name, _) => name.serialize(serializer),
     }
+  }
+}
+
+impl<'a> Deserialize<'a> for ModelOpt {
+  fn deserialize<D>(deserializer: D) -> Result<ModelOpt, D::Error>
+  where
+    D: serde::Deserializer<'a>,
+  {
+    let name = String::deserialize(deserializer)?;
+    Ok(ModelOpt::new(name))
   }
 }

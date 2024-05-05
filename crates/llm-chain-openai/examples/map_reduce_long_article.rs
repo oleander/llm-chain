@@ -3,15 +3,17 @@ use llm_chain::{executor, options, parameters, prompt, Parameters};
 use llm_chain::traits::Executor as ExecutorTrait;
 use llm_chain_openai::chatgpt::Executor;
 use llm_chain::options::{ModelRef, Options};
+use tiktoken_rs::tokenizer::Tokenizer;
 use llm_chain::chains::map_reduce::Chain;
 use serde::{Deserialize, Serialize};
 use llm_chain::step::Step;
 use anyhow::Result;
+use tiktoken_rs::CoreBPE;
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a new ChatGPT executor with the default settings
     let options = options!(
-        Model: ModelOpt::new_with_bpe("llama3:latest", CoreBPE::GPT2)
+        Model: ModelOpt::new_with_bpe("llama3:latest".to_string(), Tokenizer::Cl100kBase)
     );
 
     let exec = executor!(chatgpt, options)?;
