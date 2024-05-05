@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use lazy_static::lazy_static;
 use paste::paste;
 use std::{collections::HashMap, env::VarError, ffi::OsStr};
@@ -272,6 +274,15 @@ impl<'a> OptionsCascade<'a> {
             }
         }
         None
+    }
+
+    pub fn model(&self) -> ModelOpt {
+        let Some(Opt::Model(model)) = self.get(OptDiscriminants::Model) else {
+            return ModelOpt::new("gpt-3.5-turbo".to_string())
+
+        };
+
+        model.clone()
     }
 
     /// Returns a boolean indicating if options indicate that requests should be streamed or not.

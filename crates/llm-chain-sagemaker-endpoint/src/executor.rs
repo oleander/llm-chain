@@ -2,6 +2,7 @@ use crate::model::Formatter;
 use crate::model::Model;
 use async_trait::async_trait;
 
+use llm_chain::model_opt::ModelOpt;
 use llm_chain::options::Opt;
 use llm_chain::options::Options;
 use llm_chain::options::OptionsCascade;
@@ -39,6 +40,14 @@ impl Executor {
     }
 }
 
+impl From<ModelOpt> for Model {
+    fn from(model_opt: ModelOpt) -> Self {
+        match model_opt {
+            ModelOpt::Known(name) => Model::from_str(&name).unwrap(),
+            ModelOpt::Unknown(name, _) => Model::from_str(&name).unwrap(),
+        }
+    }
+}
 #[async_trait]
 impl llm_chain::traits::Executor for Executor {
     type StepTokenizer<'a> = SageMakerEndpointTokenizer;
@@ -54,7 +63,8 @@ impl llm_chain::traits::Executor for Executor {
 
     async fn execute(&self, options: &Options, prompt: &Prompt) -> Result<Output, ExecutorError> {
         let opts = self.cascade(Some(options));
-        let model = self.get_model_from_invocation_options(&opts);
+        let model = opts.model();
+        let model: Model = model.into();
 
         let body_blob = model.format_request(prompt, &opts);
 
