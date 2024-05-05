@@ -5,7 +5,7 @@ use tiktoken_rs::{get_bpe_from_tokenizer, tokenizer::Tokenizer, CoreBPE};
 #[derive(Debug, Clone)]
 pub enum ModelOpt {
   Known(String),
-  Unknown(String, CoreBPE),
+  Unknown(String, Tokenizer
 }
 
 impl ModelOpt {
@@ -14,13 +14,13 @@ impl ModelOpt {
   }
 
   pub fn new_with_bpe(name: String, tkn: Tokenizer) -> Self {
-    Self::Unknown(name, get_bpe_from_tokenizer(tkn).unwrap())
+    Self::Unknown(name, tkn)
   }
 
   pub fn bpe(&self) -> Result<CoreBPE, PromptTokensError> {
     match self {
       Self::Known(name) => Ok(tiktoken_rs::get_bpe_from_model(name).unwrap()),
-      Self::Unknown(_, bpe) => Ok(bpe.clone()),
+      Self::Unknown(_, tkn) => Ok(bpe.clone()),
     }
   }
 
